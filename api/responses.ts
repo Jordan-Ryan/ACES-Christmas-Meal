@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { kv } from '@vercel/kv';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -7,12 +8,22 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Read data file
-function readData() {
+const DATA_KEY = 'christmas-meal-orders';
+
+// Read data from Vercel KV or fallback to file
+async function readData() {
   try {
-    // Try multiple possible paths for Vercel deployment
+    // Try Vercel KV first (for production)
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      const data = await kv.get(DATA_KEY);
+      if (data) {
+        return data;
+      }
+    }
+    
+    // Fallback to file system (for local development or initial setup)
     const possiblePaths = [
-      join(__dirname, 'data.json'), // Same directory as API function
+      join(__dirname, 'data.json'),
       join(process.cwd(), 'api', 'data.json'),
       join(process.cwd(), 'server', 'data.json'),
     ];
@@ -20,19 +31,37 @@ function readData() {
     for (const dataPath of possiblePaths) {
       try {
         const data = readFileSync(dataPath, 'utf-8');
-        return JSON.parse(data);
+        const parsed = JSON.parse(data);
+        // Initialize KV with file data if KV is available
+        if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+          await kv.set(DATA_KEY, parsed);
+        }
+        return parsed;
       } catch (err) {
-        console.log(`Tried path: ${dataPath}, error:`, err);
         continue;
       }
     }
     
-    // Fallback: return empty data if file not found
-    console.error('Data file not found in any expected location');
     return { people: [] };
   } catch (error) {
-    console.error('Error reading data file:', error);
+    console.error('Error reading data:', error);
     return { people: [] };
+  }
+}
+
+// Write data to Vercel KV
+async function writeData(data: any) {
+  try {
+    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+      await kv.set(DATA_KEY, data);
+      return true;
+    }
+    // If KV is not configured, return false (data won't persist)
+    console.warn('Vercel KV not configured - data will not persist');
+    return false;
+  } catch (error) {
+    console.error('Error writing data to KV:', error);
+    return false;
   }
 }
 
@@ -46,7 +75,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'GET') {
-    const data = readData();
+    const data = await readData();
     return res.json(data);
   }
 
@@ -57,7 +86,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'personId and order are required' });
     }
 
-    const data = readData();
+    const data = await readData();
     const personIndex = data.people.findIndex((p: { id: number }) => p.id === personId);
 
     if (personIndex === -1) {
@@ -73,9 +102,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       data.people[personIndex].hasPaid = hasPaid;
     }
 
-    // Note: In Vercel serverless functions, file writes are ephemeral
-    // For persistent storage, you'd need Vercel KV, a database, or another solution
-    // For now, this will work but changes won't persist across deployments
+    // Save to Vercel KV for persistence
+    const saved = await writeData(data);
+    
+    if (!saved) {
+      return res.status(500).json({ 
+        error: 'Failed to save data. Please ensure Vercel KV is configured.',
+        data 
+      });
+    }
+
     return res.json({ success: true, data });
   }
 
