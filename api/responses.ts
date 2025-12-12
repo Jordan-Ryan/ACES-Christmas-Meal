@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv, createClient } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -10,36 +10,36 @@ const __dirname = dirname(__filename);
 
 const DATA_KEY = 'christmas-meal-orders';
 
-// Initialize KV client with explicit env vars (works with both KV and Upstash)
-function getKvClient() {
-  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+// Initialize Redis client (works with Upstash Redis)
+function getRedisClient() {
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
   
-  if (kvUrl && kvToken) {
-    return createClient({
-      url: kvUrl,
-      token: kvToken,
+  if (redisUrl && redisToken) {
+    return new Redis({
+      url: redisUrl,
+      token: redisToken,
     });
   }
   return null;
 }
 
-// Read data from Vercel KV/Upstash Redis or fallback to file
+// Read data from Upstash Redis or fallback to file
 async function readData() {
   try {
-    const kvClient = getKvClient();
+    const redis = getRedisClient();
     
-    // Try Vercel KV/Upstash Redis first (for production)
-    if (kvClient) {
+    // Try Upstash Redis first (for production)
+    if (redis) {
       try {
-        const data = await kvClient.get(DATA_KEY);
+        const data = await redis.get(DATA_KEY);
         if (data) {
-          console.log('Read data from KV/Upstash');
+          console.log('Read data from Upstash Redis');
           return data;
         }
-        console.log('KV/Upstash key not found, will initialize from file');
-      } catch (kvError) {
-        console.error('Error reading from KV/Upstash:', kvError);
+        console.log('Upstash Redis key not found, will initialize from file');
+      } catch (redisError) {
+        console.error('Error reading from Upstash Redis:', redisError);
         // Fall through to file system
       }
     }
@@ -55,13 +55,13 @@ async function readData() {
       try {
         const data = readFileSync(dataPath, 'utf-8');
         const parsed = JSON.parse(data);
-        // Initialize KV with file data if KV/Upstash is available (first time only)
-        if (kvClient) {
+        // Initialize Redis with file data if available (first time only)
+        if (redis) {
           try {
-            await kvClient.set(DATA_KEY, parsed);
-            console.log('Initialized KV/Upstash with file data');
+            await redis.set(DATA_KEY, parsed);
+            console.log('Initialized Upstash Redis with file data');
           } catch (initError) {
-            console.error('Error initializing KV/Upstash:', initError);
+            console.error('Error initializing Upstash Redis:', initError);
           }
         }
         return parsed;
@@ -77,21 +77,25 @@ async function readData() {
   }
 }
 
-// Write data to Vercel KV/Upstash Redis
+// Write data to Upstash Redis
 async function writeData(data: any) {
   try {
-    const kvClient = getKvClient();
+    const redis = getRedisClient();
     
-    if (kvClient) {
-      await kvClient.set(DATA_KEY, data);
-      console.log('Successfully saved data to KV/Upstash');
+    if (redis) {
+      await redis.set(DATA_KEY, data);
+      console.log('Successfully saved data to Upstash Redis');
       return true;
     }
-    // If KV/Upstash is not configured, return false (data won't persist)
-    console.warn('Vercel KV/Upstash Redis not configured - data will not persist');
+    // If Redis is not configured, return false (data won't persist)
+    console.warn('Upstash Redis not configured - data will not persist');
+    console.warn('Env vars check:', {
+      hasUrl: !!process.env.UPSTASH_REDIS_REST_URL,
+      hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+    });
     return false;
   } catch (error) {
-    console.error('Error writing data to KV/Upstash:', error);
+    console.error('Error writing data to Upstash Redis:', error);
     return false;
   }
 }
