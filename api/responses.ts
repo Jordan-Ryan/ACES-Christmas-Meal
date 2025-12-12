@@ -10,11 +10,15 @@ const __dirname = dirname(__filename);
 
 const DATA_KEY = 'christmas-meal-orders';
 
-// Read data from Vercel KV or fallback to file
+// Read data from Vercel KV/Upstash Redis or fallback to file
 async function readData() {
   try {
-    // Try Vercel KV first (for production)
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    // Try Vercel KV/Upstash Redis first (for production)
+    // Support both KV and Upstash Redis env var names
+    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    
+    if (kvUrl && kvToken) {
       const data = await kv.get(DATA_KEY);
       if (data) {
         return data;
@@ -32,8 +36,10 @@ async function readData() {
       try {
         const data = readFileSync(dataPath, 'utf-8');
         const parsed = JSON.parse(data);
-        // Initialize KV with file data if KV is available
-        if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+        // Initialize KV with file data if KV/Upstash is available
+        const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+        const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+        if (kvUrl && kvToken) {
           await kv.set(DATA_KEY, parsed);
         }
         return parsed;
@@ -49,15 +55,19 @@ async function readData() {
   }
 }
 
-// Write data to Vercel KV
+// Write data to Vercel KV/Upstash Redis
 async function writeData(data: any) {
   try {
-    if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
+    // Support both KV and Upstash Redis env var names
+    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    
+    if (kvUrl && kvToken) {
       await kv.set(DATA_KEY, data);
       return true;
     }
-    // If KV is not configured, return false (data won't persist)
-    console.warn('Vercel KV not configured - data will not persist');
+    // If KV/Upstash is not configured, return false (data won't persist)
+    console.warn('Vercel KV/Upstash Redis not configured - data will not persist');
     return false;
   } catch (error) {
     console.error('Error writing data to KV:', error);
