@@ -31,8 +31,10 @@ const menuData: MenuData = {
     { name: 'Chicken, leek and tarragon pie for two', price: 48 },
   ],
   sides: [
-    { name: 'Buttered greens / Carrots and peas, chervil butter', price: 5 },
-    { name: 'Garlic and parmesan mash / Pub chips', price: 5 },
+    { name: 'Buttered greens', price: 5 },
+    { name: 'Carrots and peas, chervil butter', price: 5 },
+    { name: 'Garlic and parmesan mash', price: 5 },
+    { name: 'Pub chips', price: 5 },
     { name: 'Butterhead lettuce, shallots, lemon', price: 5 },
   ],
   desserts: [
