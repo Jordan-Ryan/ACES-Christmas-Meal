@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { kv } from '@vercel/kv';
+import { kv, createClient } from '@vercel/kv';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
@@ -10,18 +10,37 @@ const __dirname = dirname(__filename);
 
 const DATA_KEY = 'christmas-meal-orders';
 
+// Initialize KV client with explicit env vars (works with both KV and Upstash)
+function getKvClient() {
+  const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  
+  if (kvUrl && kvToken) {
+    return createClient({
+      url: kvUrl,
+      token: kvToken,
+    });
+  }
+  return null;
+}
+
 // Read data from Vercel KV/Upstash Redis or fallback to file
 async function readData() {
   try {
-    // Try Vercel KV/Upstash Redis first (for production)
-    // Support both KV and Upstash Redis env var names
-    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    const kvClient = getKvClient();
     
-    if (kvUrl && kvToken) {
-      const data = await kv.get(DATA_KEY);
-      if (data) {
-        return data;
+    // Try Vercel KV/Upstash Redis first (for production)
+    if (kvClient) {
+      try {
+        const data = await kvClient.get(DATA_KEY);
+        if (data) {
+          console.log('Read data from KV/Upstash');
+          return data;
+        }
+        console.log('KV/Upstash key not found, will initialize from file');
+      } catch (kvError) {
+        console.error('Error reading from KV/Upstash:', kvError);
+        // Fall through to file system
       }
     }
     
@@ -36,11 +55,14 @@ async function readData() {
       try {
         const data = readFileSync(dataPath, 'utf-8');
         const parsed = JSON.parse(data);
-        // Initialize KV with file data if KV/Upstash is available
-        const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-        const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-        if (kvUrl && kvToken) {
-          await kv.set(DATA_KEY, parsed);
+        // Initialize KV with file data if KV/Upstash is available (first time only)
+        if (kvClient) {
+          try {
+            await kvClient.set(DATA_KEY, parsed);
+            console.log('Initialized KV/Upstash with file data');
+          } catch (initError) {
+            console.error('Error initializing KV/Upstash:', initError);
+          }
         }
         return parsed;
       } catch (err) {
@@ -58,19 +80,18 @@ async function readData() {
 // Write data to Vercel KV/Upstash Redis
 async function writeData(data: any) {
   try {
-    // Support both KV and Upstash Redis env var names
-    const kvUrl = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-    const kvToken = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+    const kvClient = getKvClient();
     
-    if (kvUrl && kvToken) {
-      await kv.set(DATA_KEY, data);
+    if (kvClient) {
+      await kvClient.set(DATA_KEY, data);
+      console.log('Successfully saved data to KV/Upstash');
       return true;
     }
     // If KV/Upstash is not configured, return false (data won't persist)
     console.warn('Vercel KV/Upstash Redis not configured - data will not persist');
     return false;
   } catch (error) {
-    console.error('Error writing data to KV:', error);
+    console.error('Error writing data to KV/Upstash:', error);
     return false;
   }
 }
