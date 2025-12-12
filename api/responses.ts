@@ -106,9 +106,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const saved = await writeData(data);
     
     if (!saved) {
-      return res.status(500).json({ 
-        error: 'Failed to save data. Please ensure Vercel KV is configured.',
-        data 
+      // Still return success, but warn that data won't persist
+      // This allows the app to work even without KV configured
+      console.warn('Vercel KV not configured - data changes will not persist');
+      return res.json({ 
+        success: true, 
+        data,
+        warning: 'Data saved in memory but will not persist. Please configure Vercel KV for persistent storage.'
       });
     }
 
