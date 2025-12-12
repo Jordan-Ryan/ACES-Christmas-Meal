@@ -90,7 +90,7 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
     if (!person.order) return false;
     if (person.isChild) {
       const order = person.order as KidsOrder;
-      return !!order.main; // Main is required for kids
+      return !!(order.main || order.sundayRoast); // Main or Sunday roast is required for kids
     } else {
       const order = person.order as AdultOrder;
       return !!(order.main || order.sundayRoast); // Main or Sunday roast is required
