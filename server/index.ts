@@ -98,12 +98,12 @@ function writeData(data: unknown) {
 }
 
 // GET /api/menu - Get menu items
-app.get('/api/menu', (req, res) => {
+app.get('/api/menu', (_req, res) => {
   res.json(menuData);
 });
 
 // GET /api/responses - Get all responses
-app.get('/api/responses', (req, res) => {
+app.get('/api/responses', (_req, res) => {
   const data = readData();
   res.json(data);
 });
