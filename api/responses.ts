@@ -1,13 +1,34 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Read data file
 function readData() {
   try {
-    const dataPath = join(process.cwd(), 'server', 'data.json');
-    const data = readFileSync(dataPath, 'utf-8');
-    return JSON.parse(data);
+    // Try multiple possible paths for Vercel deployment
+    const possiblePaths = [
+      join(process.cwd(), 'server', 'data.json'),
+      join(process.cwd(), '..', 'server', 'data.json'),
+      join(__dirname, '..', 'server', 'data.json'),
+    ];
+    
+    for (const dataPath of possiblePaths) {
+      try {
+        const data = readFileSync(dataPath, 'utf-8');
+        return JSON.parse(data);
+      } catch {
+        continue;
+      }
+    }
+    
+    // Fallback: return empty data if file not found
+    console.error('Data file not found in any expected location');
+    return { people: [] };
   } catch (error) {
     console.error('Error reading data file:', error);
     return { people: [] };
