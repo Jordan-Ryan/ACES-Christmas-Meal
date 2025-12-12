@@ -400,16 +400,18 @@ export function OrderForm({
               </div>
             )}
 
-            <div className="form-group checkbox-group">
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={hasPaid}
-                  onChange={(e) => setHasPaid(e.target.checked)}
-                />
-                <span>Paid (Deposit)</span>
-              </label>
-            </div>
+            {!isChild && (
+              <div className="form-group checkbox-group">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={hasPaid}
+                    onChange={(e) => setHasPaid(e.target.checked)}
+                  />
+                  <span>Paid (Deposit)</span>
+                </label>
+              </div>
+            )}
 
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">Order submitted successfully!</div>}

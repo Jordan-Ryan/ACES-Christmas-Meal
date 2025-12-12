@@ -47,7 +47,7 @@
       "id": 5,
       "name": "Gemma",
       "isChild": false,
-      "hasPaid": false,
+      "hasPaid": true,
       "order": null
     },
     {
@@ -91,7 +91,7 @@
       "id": 10,
       "name": "Viqas",
       "isChild": false,
-      "hasPaid": false,
+      "hasPaid": true,
       "order": null
     },
     {
