@@ -71,6 +71,7 @@ function App() {
             onOrderSubmitted={handleOrderSubmitted}
             selectedPersonId={selectedPersonId}
             onSelectedPersonChange={setSelectedPersonId}
+            onNavigateToResponses={() => setCurrentView('responses')}
           />
         ) : (
           <ResponsesView onPersonClick={handlePersonClick} />

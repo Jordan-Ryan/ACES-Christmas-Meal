@@ -7,6 +7,7 @@ interface OrderFormProps {
   onOrderSubmitted: () => void;
   selectedPersonId?: number | null;
   onSelectedPersonChange?: (id: number | null) => void;
+  onNavigateToResponses?: () => void;
 }
 
 const hasOrder = (person: Person): boolean => {
@@ -24,6 +25,7 @@ export function OrderForm({
   onOrderSubmitted,
   selectedPersonId: initialSelectedPersonId,
   onSelectedPersonChange,
+  onNavigateToResponses,
 }: OrderFormProps) {
   const [selectedPersonId, setSelectedPersonId] = useState<number | ''>(
     initialSelectedPersonId || ''
@@ -171,13 +173,18 @@ export function OrderForm({
       });
 
       setSuccess(true);
+      // Reload people data immediately
+      onOrderSubmitted();
+      // Navigate to responses view after a short delay
       setTimeout(() => {
-        onOrderSubmitted();
         setSuccess(false);
         if (onSelectedPersonChange) {
           onSelectedPersonChange(null);
         }
-      }, 1500);
+        // Trigger navigation to responses view
+        const event = new CustomEvent('navigate', { detail: 'responses' });
+        window.dispatchEvent(event);
+      }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit order');
     } finally {
