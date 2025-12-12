@@ -1,150 +1,98 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { Redis } from '@upstash/redis';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { createClient } from '@supabase/supabase-js';
+import type { Person, ResponsesData } from '../src/types';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const TABLE_NAME = 'aces_christmas_meal';
 
-const DATA_KEY = 'christmas-meal-orders';
-
-// Initialize Redis client (works with Upstash Redis)
-function getRedisClient() {
-  // Try multiple possible env var names (Vercel/Upstash might use different names)
-  const redisUrl = 
-    process.env.UPSTASH_REDIS_REST_URL || 
-    process.env.UPSTASH_REDIS_REST_URL || 
-    process.env.KV_REST_API_URL ||
-    process.env.REDIS_URL;
-    
-  const redisToken = 
-    process.env.UPSTASH_REDIS_REST_TOKEN || 
-    process.env.UPSTASH_REDIS_REST_TOKEN || 
-    process.env.KV_REST_API_TOKEN ||
-    process.env.REDIS_TOKEN;
+// Initialize Supabase client
+function getSupabaseClient() {
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   
-  // Log what we found for debugging
-  console.log('Redis env vars check:', {
-    UPSTASH_REDIS_REST_URL: !!process.env.UPSTASH_REDIS_REST_URL,
-    UPSTASH_REDIS_REST_TOKEN: !!process.env.UPSTASH_REDIS_REST_TOKEN,
-    KV_REST_API_URL: !!process.env.KV_REST_API_URL,
-    KV_REST_API_TOKEN: !!process.env.KV_REST_API_TOKEN,
-    REDIS_URL: !!process.env.REDIS_URL,
-    REDIS_TOKEN: !!process.env.REDIS_TOKEN,
-    foundUrl: !!redisUrl,
-    foundToken: !!redisToken,
-  });
-  
-  if (redisUrl && redisToken) {
-    try {
-      return new Redis({
-        url: redisUrl,
-        token: redisToken,
-      });
-    } catch (error) {
-      console.error('Error creating Redis client:', error);
-      return null;
-    }
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('Supabase not configured - missing env vars');
+    console.warn('Need: SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY)');
+    return null;
   }
   
-  console.warn('Redis client not created - missing env vars');
-  return null;
+  return createClient(supabaseUrl, supabaseKey);
 }
 
-// Read data from Upstash Redis or fallback to file
-async function readData() {
+// Read all people from Supabase
+async function readData(): Promise<ResponsesData> {
   try {
-    const redis = getRedisClient();
+    const supabase = getSupabaseClient();
     
-    // Try Upstash Redis first (for production)
-    if (redis) {
-      try {
-        const data = await redis.get(DATA_KEY);
-        if (data) {
-          console.log('Read data from Upstash Redis');
-          return data;
-        }
-        console.log('Upstash Redis key not found, will initialize from file');
-      } catch (redisError) {
-        console.error('Error reading from Upstash Redis:', redisError);
-        // Fall through to file system
-      }
+    if (!supabase) {
+      console.warn('Supabase not configured, returning empty data');
+      return { people: [] };
     }
     
-    // Fallback to file system (for local development or initial setup)
-    const possiblePaths = [
-      join(__dirname, 'data.json'),
-      join(process.cwd(), 'api', 'data.json'),
-      join(process.cwd(), 'server', 'data.json'),
-    ];
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .order('id');
     
-    for (const dataPath of possiblePaths) {
-      try {
-        const data = readFileSync(dataPath, 'utf-8');
-        const parsed = JSON.parse(data);
-        // Initialize Redis with file data if available (first time only)
-        if (redis) {
-          try {
-            await redis.set(DATA_KEY, parsed);
-            console.log('Initialized Upstash Redis with file data');
-          } catch (initError) {
-            console.error('Error initializing Upstash Redis:', initError);
-          }
-        }
-        return parsed;
-      } catch (err) {
-        continue;
-      }
+    if (error) {
+      console.error('Error reading from Supabase:', error);
+      return { people: [] };
     }
     
-    return { people: [] };
+    if (!data || data.length === 0) {
+      console.log('No data in Supabase, returning empty');
+      return { people: [] };
+    }
+    
+    // Transform Supabase rows to Person format
+    const people: Person[] = data.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      isChild: row.is_child,
+      hasPaid: row.has_paid || false,
+      order: row.order_data,
+    }));
+    
+    console.log(`Read ${people.length} people from Supabase`);
+    return { people };
   } catch (error) {
     console.error('Error reading data:', error);
     return { people: [] };
   }
 }
 
-// Write data to Upstash Redis
-async function writeData(data: any) {
+// Write/update all people to Supabase
+async function writeData(data: ResponsesData): Promise<boolean> {
   try {
-    const redis = getRedisClient();
+    const supabase = getSupabaseClient();
     
-    if (!redis) {
-      // If Redis is not configured, return false (data won't persist)
-      console.warn('Upstash Redis not configured - data will not persist');
-      console.warn('Env vars check:', {
-        hasUrl: !!process.env.UPSTASH_REDIS_REST_URL,
-        hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
-        urlPrefix: process.env.UPSTASH_REDIS_REST_URL?.substring(0, 20) || 'none',
-      });
+    if (!supabase) {
+      console.warn('Supabase not configured - data will not persist');
       return false;
     }
     
-    console.log('Attempting to save data to Upstash Redis...');
-    console.log('Data size:', JSON.stringify(data).length, 'bytes');
-    console.log('People count:', data.people?.length || 0);
+    // Upsert all people (insert or update)
+    const rows = data.people.map((person) => ({
+      id: person.id,
+      name: person.name,
+      is_child: person.isChild,
+      has_paid: person.hasPaid || false,
+      order_data: person.order,
+      updated_at: new Date().toISOString(),
+    }));
     
-    const result = await redis.set(DATA_KEY, data);
-    console.log('Redis set result:', result);
-    console.log('Successfully saved data to Upstash Redis');
+    const { error } = await supabase
+      .from(TABLE_NAME)
+      .upsert(rows, { onConflict: 'id' });
     
-    // Verify it was saved
-    const verify = await redis.get(DATA_KEY);
-    if (verify) {
-      console.log('Verified: Data exists in Redis');
-    } else {
-      console.error('ERROR: Data was not saved to Redis!');
+    if (error) {
+      console.error('Error writing to Supabase:', error);
+      return false;
     }
     
+    console.log(`Successfully saved ${rows.length} people to Supabase`);
     return true;
   } catch (error) {
-    console.error('Error writing data to Upstash Redis:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    console.error('Error writing data to Supabase:', error);
     return false;
   }
 }
@@ -170,8 +118,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(400).json({ error: 'personId and order are required' });
     }
 
+    // Read current data
     const data = await readData();
-    const personIndex = data.people.findIndex((p: { id: number }) => p.id === personId);
+    const personIndex = data.people.findIndex((p) => p.id === personId);
 
     if (personIndex === -1) {
       return res.status(404).json({ error: 'Person not found' });
@@ -186,25 +135,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       data.people[personIndex].hasPaid = hasPaid;
     }
 
-    // Save to Upstash Redis for persistence
-    console.log('Saving updated data...');
+    // Save to Supabase
     const saved = await writeData(data);
     
     if (!saved) {
-      // Still return success, but warn that data won't persist
-      // This allows the app to work even without Redis configured
-      console.warn('Upstash Redis not configured - data changes will not persist');
+      console.warn('Failed to save to Supabase');
       return res.json({ 
         success: true, 
         data,
-        warning: 'Data saved in memory but will not persist. Please configure Upstash Redis for persistent storage.'
+        warning: 'Data saved in memory but will not persist. Please configure Supabase.'
       });
     }
 
-    console.log('Order saved successfully!');
+    console.log('Order saved successfully to Supabase!');
     return res.json({ success: true, data });
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
-
