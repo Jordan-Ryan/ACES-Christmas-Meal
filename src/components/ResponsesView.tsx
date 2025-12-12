@@ -190,12 +190,15 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                               {(order as AdultOrder | null)?.main}
                             </div>
                           )}
-                          {(order as AdultOrder | null)?.sides && (order as AdultOrder | null)?.sides!.length > 0 && (
-                            <div>
-                              <strong>Sides:</strong>{' '}
-                              {(order as AdultOrder | null)?.sides!.join(', ')}
-                            </div>
-                          )}
+                          {(() => {
+                            const adultOrder = order as AdultOrder | null;
+                            const sides = adultOrder?.sides;
+                            return sides && sides.length > 0 ? (
+                              <div>
+                                <strong>Sides:</strong> {sides.join(', ')}
+                              </div>
+                            ) : null;
+                          })()}
                           {(order as AdultOrder | null)?.dessert && (
                             <div>
                               <strong>Dessert:</strong>{' '}

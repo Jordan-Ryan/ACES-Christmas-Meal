@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { fetchMenu, fetchResponses, submitOrder } from '../api';
+import { fetchMenu, submitOrder } from '../api';
 import type { Person, MenuData, Order, AdultOrder, KidsOrder } from '../types';
 
 interface OrderFormProps {
