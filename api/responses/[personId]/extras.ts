@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
-import type { Person, ResponsesData } from '../src/types';
+import type { ResponsesData, ExtraItem } from '../../../src/types';
 
 const TABLE_NAME = 'aces_christmas_meal';
 
@@ -11,7 +11,6 @@ function getSupabaseClient() {
   
   if (!supabaseUrl || !supabaseKey) {
     console.warn('Supabase not configured - missing env vars');
-    console.warn('Need: SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY)');
     return null;
   }
   
@@ -24,7 +23,6 @@ async function readData(): Promise<ResponsesData> {
     const supabase = getSupabaseClient();
     
     if (!supabase) {
-      console.warn('Supabase not configured, returning empty data');
       return { people: [] };
     }
     
@@ -39,12 +37,11 @@ async function readData(): Promise<ResponsesData> {
     }
     
     if (!data || data.length === 0) {
-      console.log('No data in Supabase, returning empty');
       return { people: [] };
     }
     
     // Transform Supabase rows to Person format
-    const people: Person[] = data.map((row: any) => ({
+    const people = data.map((row: any) => ({
       id: row.id,
       name: row.name,
       isChild: row.is_child,
@@ -53,7 +50,6 @@ async function readData(): Promise<ResponsesData> {
       extras: row.extras || [],
     }));
     
-    console.log(`Read ${people.length} people from Supabase`);
     return { people };
   } catch (error) {
     console.error('Error reading data:', error);
@@ -67,7 +63,6 @@ async function writeData(data: ResponsesData): Promise<boolean> {
     const supabase = getSupabaseClient();
     
     if (!supabase) {
-      console.warn('Supabase not configured - data will not persist');
       return false;
     }
     
@@ -91,7 +86,6 @@ async function writeData(data: ResponsesData): Promise<boolean> {
       return false;
     }
     
-    console.log(`Successfully saved ${rows.length} people to Supabase`);
     return true;
   } catch (error) {
     console.error('Error writing data to Supabase:', error);
@@ -101,60 +95,44 @@ async function writeData(data: ResponsesData): Promise<boolean> {
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'PUT, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
-  if (req.method === 'GET') {
-    const data = await readData();
-    return res.json(data);
-  }
+  if (req.method === 'PUT') {
+    try {
+      const personId = parseInt(req.query.personId as string);
+      const { extras } = req.body;
 
-  if (req.method === 'POST') {
-    const { personId, order, hasPaid, notes, extras } = req.body;
+      if (!personId || extras === undefined) {
+        return res.status(400).json({ error: 'personId and extras are required' });
+      }
 
-    if (!personId || !order) {
-      return res.status(400).json({ error: 'personId and order are required' });
-    }
+      const data = await readData();
+      const personIndex = data.people.findIndex((p) => p.id === personId);
 
-    // Read current data
-    const data = await readData();
-    const personIndex = data.people.findIndex((p) => p.id === personId);
+      if (personIndex === -1) {
+        return res.status(404).json({ error: 'Person not found' });
+      }
 
-    if (personIndex === -1) {
-      return res.status(404).json({ error: 'Person not found' });
-    }
-
-    // Update the person's order and payment status
-    if (notes !== undefined && order) {
-      order.notes = notes;
-    }
-    data.people[personIndex].order = order;
-    if (hasPaid !== undefined) {
-      data.people[personIndex].hasPaid = hasPaid;
-    }
-    if (extras !== undefined) {
       data.people[personIndex].extras = extras;
-    }
 
-    // Save to Supabase
-    const saved = await writeData(data);
-    
-    if (!saved) {
-      console.warn('Failed to save to Supabase');
-      return res.json({ 
-        success: true, 
-        data,
-        warning: 'Data saved in memory but will not persist. Please configure Supabase.'
-      });
-    }
+      const saved = await writeData(data);
+      
+      if (!saved) {
+        return res.status(500).json({ error: 'Failed to save extras' });
+      }
 
-    console.log('Order saved successfully to Supabase!');
-    return res.json({ success: true, data });
+      return res.json({ success: true, data });
+    } catch (error) {
+      console.error('Error updating extras:', error);
+      return res.status(500).json({ error: 'Failed to update extras' });
+    }
   }
 
   return res.status(405).json({ error: 'Method not allowed' });
 }
+
