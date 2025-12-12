@@ -181,9 +181,10 @@ export function OrderForm({
         if (onSelectedPersonChange) {
           onSelectedPersonChange(null);
         }
-        // Trigger navigation to responses view
-        const event = new CustomEvent('navigate', { detail: 'responses' });
-        window.dispatchEvent(event);
+        // Navigate to responses view
+        if (onNavigateToResponses) {
+          onNavigateToResponses();
+        }
       }, 1000);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit order');
