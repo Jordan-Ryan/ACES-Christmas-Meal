@@ -1111,8 +1111,30 @@ body {
   margin-top: 0.5rem;
   padding-top: 0.5rem;
   border-top: 2px solid var(--text-primary);
-  text-align: right;
-  font-size: 0.95rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.25rem;
+  font-size: 0.9rem;
+}
+
+.receipt-person-subtotal,
+.receipt-person-service {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 200px;
+}
+
+.receipt-person-grand-total {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 200px;
+  margin-top: 0.25rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 1rem;
 }
 
 .receipt-totals {

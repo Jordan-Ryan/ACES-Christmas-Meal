@@ -225,7 +225,27 @@ export function Receipt() {
                 )}
               </div>
               <div className="receipt-person-total">
-                <strong>Subtotal: £{personTotal.toFixed(2)}</strong>
+                <div className="receipt-person-subtotal">
+                  <span>Subtotal:</span>
+                  <span>£{personTotal.toFixed(2)}</span>
+                </div>
+                {(() => {
+                  const personSubtotal = personTotal;
+                  const personServiceCharge = (personSubtotal * serviceCharge) / 100;
+                  const personTotalWithService = personSubtotal + personServiceCharge;
+                  return (
+                    <>
+                      <div className="receipt-person-service">
+                        <span>Service Charge ({serviceCharge}%):</span>
+                        <span>£{personServiceCharge.toFixed(2)}</span>
+                      </div>
+                      <div className="receipt-person-grand-total">
+                        <strong>Total:</strong>
+                        <strong>£{personTotalWithService.toFixed(2)}</strong>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           );
