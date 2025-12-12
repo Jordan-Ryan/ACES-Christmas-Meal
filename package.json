@@ -7,7 +7,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "server": "tsx watch server/index.ts",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "setup-supabase": "tsx scripts/setup-supabase.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
