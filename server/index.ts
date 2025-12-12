@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { createClient } from '@supabase/supabase-js';
-import type { Person, ResponsesData, DrinkItem } from '../src/types';
+import type { Person, ResponsesData } from '../src/types';
 
 const app = express();
 const PORT = 3001;
