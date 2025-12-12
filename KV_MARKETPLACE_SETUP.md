@@ -1,6 +1,6 @@
-# Setting Up Vercel KV Through Marketplace
+# Setting Up Vercel KV Through Marketplace (Upstash Redis)
 
-Vercel has moved KV to the Marketplace. Here's how to set it up:
+Vercel has moved KV to the Marketplace via **Upstash Redis**. Here's how to set it up:
 
 ## Step-by-Step Instructions:
 
@@ -11,21 +11,29 @@ Vercel has moved KV to the Marketplace. Here's how to set it up:
 ### 2. Access the Marketplace
 - Look for **"Marketplace"** or **"Add-ons"** in the left sidebar or top menu
 - Or click on the link that says "Learn more" next to the KV message
-- You should see options for "KV" and "Postgres"
+- Search for **"Upstash Redis"** in the Marketplace
 
-### 3. Create KV Database
-- Click on **"KV"** in the Marketplace
-- Click **"Add"** or **"Create"** button
-- Choose a name (e.g., `orders-kv`)
+### 3. Add Upstash Redis
+- Click on **"Upstash Redis"** 
+- Click **"Add Integration"** or **"Add to Project"**
+- Sign in to Upstash (or create free account if needed)
+- Choose a name for your database (e.g., `orders-kv`)
 - Select a region (closest to you)
 - Click **"Create"** or **"Add"**
 
+**Note:** Upstash has a **FREE tier** with:
+- 10,000 commands/day
+- 256 MB storage
+- Perfect for your project!
+
 ### 4. Environment Variables (Automatic)
-- Vercel will automatically add:
-  - `KV_REST_API_URL`
-  - `KV_REST_API_TOKEN`
+- After adding Upstash Redis, Vercel will automatically add:
+  - `KV_REST_API_URL` (or `UPSTASH_REDIS_REST_URL`)
+  - `KV_REST_API_TOKEN` (or `UPSTASH_REDIS_REST_TOKEN`)
 - These are automatically available to your serverless functions
 - **No manual setup needed!**
+
+**Note:** The code uses `@vercel/kv` which works with both KV and Upstash Redis automatically!
 
 ### 5. Redeploy
 - After adding KV, Vercel will automatically redeploy
