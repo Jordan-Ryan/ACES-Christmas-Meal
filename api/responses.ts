@@ -12,15 +12,44 @@ const DATA_KEY = 'christmas-meal-orders';
 
 // Initialize Redis client (works with Upstash Redis)
 function getRedisClient() {
-  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
-  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  // Try multiple possible env var names (Vercel/Upstash might use different names)
+  const redisUrl = 
+    process.env.UPSTASH_REDIS_REST_URL || 
+    process.env.UPSTASH_REDIS_REST_URL || 
+    process.env.KV_REST_API_URL ||
+    process.env.REDIS_URL;
+    
+  const redisToken = 
+    process.env.UPSTASH_REDIS_REST_TOKEN || 
+    process.env.UPSTASH_REDIS_REST_TOKEN || 
+    process.env.KV_REST_API_TOKEN ||
+    process.env.REDIS_TOKEN;
+  
+  // Log what we found for debugging
+  console.log('Redis env vars check:', {
+    UPSTASH_REDIS_REST_URL: !!process.env.UPSTASH_REDIS_REST_URL,
+    UPSTASH_REDIS_REST_TOKEN: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+    KV_REST_API_URL: !!process.env.KV_REST_API_URL,
+    KV_REST_API_TOKEN: !!process.env.KV_REST_API_TOKEN,
+    REDIS_URL: !!process.env.REDIS_URL,
+    REDIS_TOKEN: !!process.env.REDIS_TOKEN,
+    foundUrl: !!redisUrl,
+    foundToken: !!redisToken,
+  });
   
   if (redisUrl && redisToken) {
-    return new Redis({
-      url: redisUrl,
-      token: redisToken,
-    });
+    try {
+      return new Redis({
+        url: redisUrl,
+        token: redisToken,
+      });
+    } catch (error) {
+      console.error('Error creating Redis client:', error);
+      return null;
+    }
   }
+  
+  console.warn('Redis client not created - missing env vars');
   return null;
 }
 
