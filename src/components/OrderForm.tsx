@@ -168,7 +168,7 @@ export function OrderForm({
       await submitOrder({
         personId: selectedPersonId as number,
         order,
-        hasPaid,
+        hasPaid: isChild ? undefined : hasPaid,
         notes,
       });
 
