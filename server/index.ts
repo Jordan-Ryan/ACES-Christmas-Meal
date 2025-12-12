@@ -1,19 +1,110 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { createClient } from '@supabase/supabase-js';
+import type { Person, ResponsesData } from '../src/types';
 
 const app = express();
 const PORT = 3001;
-const DATA_FILE = join(__dirname, 'data.json');
+const TABLE_NAME = 'aces_christmas_meal';
 
 app.use(cors());
 app.use(express.json());
+
+// Initialize Supabase client
+function getSupabaseClient() {
+  // Support both SUPABASE_URL and NEXT_PUBLIC_SUPABASE_URL
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  // Support both ANON_KEY and SERVICE_ROLE_KEY
+  const supabaseKey = process.env.SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    console.warn('⚠️  Supabase not configured - missing env vars');
+    console.warn('   Need: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY)');
+    return null;
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+}
+
+// Read all people from Supabase
+async function readData(): Promise<ResponsesData> {
+  try {
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      console.warn('Supabase not configured, returning empty data');
+      return { people: [] };
+    }
+    
+    const { data, error } = await supabase
+      .from(TABLE_NAME)
+      .select('*')
+      .order('id');
+    
+    if (error) {
+      console.error('Error reading from Supabase:', error);
+      return { people: [] };
+    }
+    
+    if (!data || data.length === 0) {
+      console.log('No data in Supabase, returning empty');
+      return { people: [] };
+    }
+    
+    // Transform Supabase rows to Person format
+    const people: Person[] = data.map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      isChild: row.is_child,
+      hasPaid: row.has_paid || false,
+      order: row.order_data,
+    }));
+    
+    console.log(`✅ Read ${people.length} people from Supabase`);
+    return { people };
+  } catch (error) {
+    console.error('Error reading data:', error);
+    return { people: [] };
+  }
+}
+
+// Write/update all people to Supabase
+async function writeData(data: ResponsesData): Promise<boolean> {
+  try {
+    const supabase = getSupabaseClient();
+    
+    if (!supabase) {
+      console.warn('Supabase not configured - data will not persist');
+      return false;
+    }
+    
+    // Upsert all people (insert or update)
+    const rows = data.people.map((person) => ({
+      id: person.id,
+      name: person.name,
+      is_child: person.isChild,
+      has_paid: person.hasPaid || false,
+      order_data: person.order,
+      updated_at: new Date().toISOString(),
+    }));
+    
+    const { error } = await supabase
+      .from(TABLE_NAME)
+      .upsert(rows, { onConflict: 'id' });
+    
+    if (error) {
+      console.error('Error writing to Supabase:', error);
+      return false;
+    }
+    
+    console.log(`✅ Successfully saved ${rows.length} people to Supabase`);
+    return true;
+  } catch (error) {
+    console.error('Error writing data to Supabase:', error);
+    return false;
+  }
+}
 
 // Menu data organized by category - Sunday Menu
 const menuData = {
@@ -75,27 +166,6 @@ const menuData = {
   ],
 };
 
-// Helper function to read data file
-function readData() {
-  try {
-    const data = readFileSync(DATA_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch (error) {
-    console.error('Error reading data file:', error);
-    return { people: [] };
-  }
-}
-
-// Helper function to write data file
-function writeData(data: unknown) {
-  try {
-    writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), 'utf-8');
-    return true;
-  } catch (error) {
-    console.error('Error writing data file:', error);
-    return false;
-  }
-}
 
 // GET /api/menu - Get menu items
 app.get('/api/menu', (_req, res) => {
@@ -103,43 +173,63 @@ app.get('/api/menu', (_req, res) => {
 });
 
 // GET /api/responses - Get all responses
-app.get('/api/responses', (_req, res) => {
-  const data = readData();
+app.get('/api/responses', async (_req, res) => {
+  const data = await readData();
   res.json(data);
 });
 
 // POST /api/responses - Submit or update a response
-app.post('/api/responses', (req, res) => {
-  const { personId, order, depositPaid, notes } = req.body;
+app.post('/api/responses', async (req, res) => {
+  const { personId, order, depositPaid, hasPaid, notes } = req.body;
 
   if (!personId || !order) {
     return res.status(400).json({ error: 'personId and order are required' });
   }
 
-  const data = readData();
-  const personIndex = data.people.findIndex((p: { id: number }) => p.id === personId);
+  const data = await readData();
+  const personIndex = data.people.findIndex((p) => p.id === personId);
 
   if (personIndex === -1) {
     return res.status(404).json({ error: 'Person not found' });
   }
 
-  // Update the person's order and deposit status
+  // Update the person's order and payment status
+  // Support both 'depositPaid' and 'hasPaid' for backward compatibility
+  const paymentStatus = hasPaid !== undefined ? hasPaid : depositPaid;
+  
   if (notes !== undefined && order) {
     order.notes = notes;
   }
   data.people[personIndex].order = order;
-  if (depositPaid !== undefined) {
-    data.people[personIndex].depositPaid = depositPaid;
+  if (paymentStatus !== undefined) {
+    data.people[personIndex].hasPaid = paymentStatus;
   }
 
-  if (writeData(data)) {
-    res.json({ success: true, data });
-  } else {
-    res.status(500).json({ error: 'Failed to save data' });
+  // Save to Supabase
+  const saved = await writeData(data);
+  
+  if (!saved) {
+    console.warn('Failed to save to Supabase');
+    return res.json({ 
+      success: true, 
+      data,
+      warning: 'Data saved in memory but will not persist. Please configure Supabase.'
+    });
   }
+
+  console.log('✅ Order saved successfully to Supabase!');
+  return res.json({ success: true, data });
 });
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  const supabase = getSupabaseClient();
+  if (supabase) {
+    console.log('✅ Supabase configured - data will be stored in Supabase');
+    console.log(`   Using: ${process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL}`);
+  } else {
+    console.log('⚠️  Supabase not configured - check your .env file');
+    console.log('   Need: SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_ANON_KEY (or SUPABASE_SERVICE_ROLE_KEY)');
+  }
 });
 

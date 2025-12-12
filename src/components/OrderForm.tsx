@@ -28,11 +28,11 @@ export function OrderForm({
   onNavigateToResponses,
 }: OrderFormProps) {
   const [selectedPersonId, setSelectedPersonId] = useState<number | ''>(
-    initialSelectedPersonId || ''
+    (initialSelectedPersonId !== null && initialSelectedPersonId !== undefined) ? initialSelectedPersonId : ''
   );
 
   // Filter out people who have completed orders, unless one is pre-selected
-  const hasPreSelectedPerson = !!initialSelectedPersonId || !!selectedPersonId;
+  const hasPreSelectedPerson = (initialSelectedPersonId !== null && initialSelectedPersonId !== undefined) || (selectedPersonId !== '' && selectedPersonId !== null);
   const availablePeople = hasPreSelectedPerson
     ? people // Show all people if someone is pre-selected (for editing)
     : people.filter((person) => !hasOrder(person)); // Otherwise, only show people without orders
@@ -59,8 +59,11 @@ export function OrderForm({
   }, []);
 
   useEffect(() => {
-    if (initialSelectedPersonId) {
+    if (initialSelectedPersonId !== null && initialSelectedPersonId !== undefined) {
       setSelectedPersonId(initialSelectedPersonId);
+    } else if (!selectedPersonId) {
+      // Only clear if we don't have a selection and initial is cleared
+      setSelectedPersonId('');
     }
   }, [initialSelectedPersonId]);
 
@@ -175,9 +178,10 @@ export function OrderForm({
       setSuccess(true);
       // Reload people data immediately
       onOrderSubmitted();
-      // Navigate to responses view after a short delay
+      // Navigate to responses view after showing success message
       setTimeout(() => {
         setSuccess(false);
+        setLoading(false);
         if (onSelectedPersonChange) {
           onSelectedPersonChange(null);
         }
@@ -185,7 +189,7 @@ export function OrderForm({
         if (onNavigateToResponses) {
           onNavigateToResponses();
         }
-      }, 1000);
+      }, 1500);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to submit order');
     } finally {
@@ -197,7 +201,7 @@ export function OrderForm({
     return <div className="loading">Loading menu...</div>;
   }
 
-  const isEditing = hasPreSelectedPerson && selectedPersonId;
+  const isEditing = hasPreSelectedPerson && (selectedPersonId !== '' && selectedPersonId !== null);
 
   return (
     <div className="order-form-container">
@@ -417,7 +421,14 @@ export function OrderForm({
             {success && <div className="success-message">Order submitted successfully!</div>}
 
             <button type="submit" disabled={loading} className="submit-button">
-              {loading ? 'Submitting...' : 'Submit Order'}
+              {loading ? (
+                <span className="button-loading">
+                  <span className="spinner"></span>
+                  Submitting...
+                </span>
+              ) : (
+                'Submit Order'
+              )}
             </button>
           </>
         )}

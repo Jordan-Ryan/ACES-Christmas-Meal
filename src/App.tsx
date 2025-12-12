@@ -35,6 +35,8 @@ function App() {
   const handlePersonClick = (personId: number) => {
     setSelectedPersonId(personId);
     setCurrentView('form');
+    // Reload people data to ensure we have the latest info
+    loadPeople();
   };
 
   if (loading) {
@@ -50,7 +52,11 @@ function App() {
             className={`nav-tab ${currentView === 'form' ? 'active' : ''}`}
             onClick={() => {
               setCurrentView('form');
-              setSelectedPersonId(null);
+              // Don't clear selectedPersonId if we're already editing someone
+              // Only clear if we're switching from responses view without a selection
+              if (currentView === 'responses' && !selectedPersonId) {
+                setSelectedPersonId(null);
+              }
             }}
           >
             Order Form

@@ -22,3 +22,4 @@ CREATE POLICY "Allow all operations on aces_christmas_meal"
   USING (true)
   WITH CHECK (true);
 
+

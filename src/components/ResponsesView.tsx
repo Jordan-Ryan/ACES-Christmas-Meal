@@ -30,9 +30,6 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
 
   useEffect(() => {
     loadResponses();
-    // Auto-refresh every 5 seconds
-    const interval = setInterval(loadResponses, 5000);
-    return () => clearInterval(interval);
   }, []);
 
   const hasOrder = (person: Person): boolean => {
