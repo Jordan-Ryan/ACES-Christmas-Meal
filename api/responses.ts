@@ -12,16 +12,17 @@ function readData() {
   try {
     // Try multiple possible paths for Vercel deployment
     const possiblePaths = [
+      join(__dirname, 'data.json'), // Same directory as API function
+      join(process.cwd(), 'api', 'data.json'),
       join(process.cwd(), 'server', 'data.json'),
-      join(process.cwd(), '..', 'server', 'data.json'),
-      join(__dirname, '..', 'server', 'data.json'),
     ];
     
     for (const dataPath of possiblePaths) {
       try {
         const data = readFileSync(dataPath, 'utf-8');
         return JSON.parse(data);
-      } catch {
+      } catch (err) {
+        console.log(`Tried path: ${dataPath}, error:`, err);
         continue;
       }
     }

@@ -1,0 +1,164 @@
+{
+  "people": [
+    {
+      "id": 1,
+      "name": "Ruman",
+      "isChild": false,
+      "hasPaid": true,
+      "order": {
+        "starter": "Scotch egg",
+        "sundayRoast": "Roast loin of pork, apple sauce, crackling",
+        "dessert": "Sticky toffee pudding, clotted cream"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Amy",
+      "isChild": false,
+      "hasPaid": true,
+      "order": {
+        "starter": "Scotch egg",
+        "sundayRoast": "Roast loin of pork, apple sauce, crackling",
+        "dessert": "Sticky toffee pudding, clotted cream"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Raja",
+      "isChild": true,
+      "hasPaid": false,
+      "order": {
+        "kidsOrder": "pasta"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Jordan",
+      "isChild": false,
+      "hasPaid": false,
+      "order": {
+        "starter": "Sourdough, crisp bread, salted butter",
+        "sundayRoast": "Grain fed chicken, bread sauce",
+        "dessert": "Sticky toffee pudding, clotted cream",
+        "notes": "Custard not cream. "
+      },
+      "depositPaid": false
+    },
+    {
+      "id": 5,
+      "name": "Gemma",
+      "isChild": false,
+      "hasPaid": false,
+      "order": null
+    },
+    {
+      "id": 6,
+      "name": "Esmé",
+      "isChild": true,
+      "hasPaid": false,
+      "order": null
+    },
+    {
+      "id": 7,
+      "name": "Joe",
+      "isChild": false,
+      "hasPaid": true,
+      "order": {
+        "starter": "Whitebait",
+        "sundayRoast": "Roast loin of pork, apple sauce, crackling"
+      }
+    },
+    {
+      "id": 8,
+      "name": "Rach",
+      "isChild": false,
+      "hasPaid": true,
+      "order": {
+        "starter": "Roast celeriac soup, woodland mushroom toastie",
+        "sundayRoast": "Grain fed chicken, bread sauce",
+        "dessert": "Apple tarte tatin for two, ice cream, custard"
+      }
+    },
+    {
+      "id": 9,
+      "name": "Emmy",
+      "isChild": true,
+      "hasPaid": false,
+      "order": {
+        "kidsOrder": "pasta"
+      }
+    },
+    {
+      "id": 10,
+      "name": "Viqas",
+      "isChild": false,
+      "hasPaid": false,
+      "order": null
+    },
+    {
+      "id": 11,
+      "name": "Dan",
+      "isChild": false,
+      "hasPaid": false,
+      "order": {
+        "starter": "Scotch egg",
+        "sundayRoast": "Roast loin of pork, apple sauce, crackling",
+        "sides": [
+          "Garlic and parmesan mash"
+        ],
+        "dessert": "Sticky toffee pudding, clotted cream",
+        "notes": "custard if possible"
+      }
+    },
+    {
+      "id": 12,
+      "name": "Will",
+      "isChild": false,
+      "hasPaid": false,
+      "order": {
+        "starter": "Scotch egg",
+        "sundayRoast": "Roast sirloin of native breed beef, horseradish",
+        "dessert": "Sticky toffee pudding, clotted cream"
+      }
+    },
+    {
+      "id": 13,
+      "name": "Courtenay",
+      "isChild": false,
+      "hasPaid": false,
+      "order": {
+        "sundayRoast": "Grain fed chicken, bread sauce",
+        "dessert": "Sticky toffee pudding, clotted cream",
+        "notes": "with custard"
+      }
+    },
+    {
+      "id": 14,
+      "name": "Suki",
+      "isChild": false,
+      "hasPaid": false,
+      "order": null
+    },
+    {
+      "id": 15,
+      "name": "Franqui",
+      "isChild": false,
+      "hasPaid": false,
+      "order": null
+    },
+    {
+      "id": 16,
+      "name": "Benji",
+      "isChild": true,
+      "hasPaid": false,
+      "order": null
+    },
+    {
+      "id": 17,
+      "name": "Richard",
+      "isChild": false,
+      "hasPaid": false,
+      "order": null
+    }
+  ]
+}
