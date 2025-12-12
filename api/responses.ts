@@ -82,20 +82,40 @@ async function writeData(data: any) {
   try {
     const redis = getRedisClient();
     
-    if (redis) {
-      await redis.set(DATA_KEY, data);
-      console.log('Successfully saved data to Upstash Redis');
-      return true;
+    if (!redis) {
+      // If Redis is not configured, return false (data won't persist)
+      console.warn('Upstash Redis not configured - data will not persist');
+      console.warn('Env vars check:', {
+        hasUrl: !!process.env.UPSTASH_REDIS_REST_URL,
+        hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
+        urlPrefix: process.env.UPSTASH_REDIS_REST_URL?.substring(0, 20) || 'none',
+      });
+      return false;
     }
-    // If Redis is not configured, return false (data won't persist)
-    console.warn('Upstash Redis not configured - data will not persist');
-    console.warn('Env vars check:', {
-      hasUrl: !!process.env.UPSTASH_REDIS_REST_URL,
-      hasToken: !!process.env.UPSTASH_REDIS_REST_TOKEN,
-    });
-    return false;
+    
+    console.log('Attempting to save data to Upstash Redis...');
+    console.log('Data size:', JSON.stringify(data).length, 'bytes');
+    console.log('People count:', data.people?.length || 0);
+    
+    const result = await redis.set(DATA_KEY, data);
+    console.log('Redis set result:', result);
+    console.log('Successfully saved data to Upstash Redis');
+    
+    // Verify it was saved
+    const verify = await redis.get(DATA_KEY);
+    if (verify) {
+      console.log('Verified: Data exists in Redis');
+    } else {
+      console.error('ERROR: Data was not saved to Redis!');
+    }
+    
+    return true;
   } catch (error) {
     console.error('Error writing data to Upstash Redis:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return false;
   }
 }
@@ -137,20 +157,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       data.people[personIndex].hasPaid = hasPaid;
     }
 
-    // Save to Vercel KV for persistence
+    // Save to Upstash Redis for persistence
+    console.log('Saving updated data...');
     const saved = await writeData(data);
     
     if (!saved) {
       // Still return success, but warn that data won't persist
-      // This allows the app to work even without KV configured
-      console.warn('Vercel KV not configured - data changes will not persist');
+      // This allows the app to work even without Redis configured
+      console.warn('Upstash Redis not configured - data changes will not persist');
       return res.json({ 
         success: true, 
         data,
-        warning: 'Data saved in memory but will not persist. Please configure Vercel KV for persistent storage.'
+        warning: 'Data saved in memory but will not persist. Please configure Upstash Redis for persistent storage.'
       });
     }
 
+    console.log('Order saved successfully!');
     return res.json({ success: true, data });
   }
 
