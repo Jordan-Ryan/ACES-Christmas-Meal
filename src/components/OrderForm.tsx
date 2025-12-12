@@ -49,7 +49,7 @@ export function OrderForm({
   const [dessert, setDessert] = useState('');
   const [kidsOrder, setKidsOrder] = useState('');
   const [notes, setNotes] = useState('');
-  const [depositPaid, setDepositPaid] = useState(false);
+  const [hasPaid, setHasPaid] = useState(false);
 
   useEffect(() => {
     fetchMenu().then(setMenu).catch((err) => {
@@ -102,7 +102,7 @@ export function OrderForm({
           setNotes(order?.notes || '');
           setKidsOrder('');
         }
-        setDepositPaid(person.depositPaid || false);
+        setHasPaid(person.hasPaid || false);
       }
     } else {
       setSnack('');
@@ -113,7 +113,7 @@ export function OrderForm({
       setDessert('');
       setKidsOrder('');
       setNotes('');
-      setDepositPaid(false);
+      setHasPaid(false);
     }
     setSuccess(false);
     setError(null);
@@ -168,7 +168,7 @@ export function OrderForm({
       await submitOrder({
         personId: selectedPersonId as number,
         order,
-        depositPaid,
+        hasPaid,
         notes,
       });
 
@@ -404,10 +404,10 @@ export function OrderForm({
               <label className="checkbox-label">
                 <input
                   type="checkbox"
-                  checked={depositPaid}
-                  onChange={(e) => setDepositPaid(e.target.checked)}
+                  checked={hasPaid}
+                  onChange={(e) => setHasPaid(e.target.checked)}
                 />
-                <span>Deposit Paid 💵</span>
+                <span>Paid (Deposit)</span>
               </label>
             </div>
 

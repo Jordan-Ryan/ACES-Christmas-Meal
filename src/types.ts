@@ -19,7 +19,6 @@ export interface Person {
   name: string;
   isChild: boolean;
   hasPaid?: boolean;
-  depositPaid?: boolean;
   order: Order;
 }
 
@@ -40,7 +39,7 @@ export interface MenuData {
 export interface SubmitOrderRequest {
   personId: number;
   order: Order;
-  depositPaid?: boolean;
+  hasPaid?: boolean;
   notes?: string;
 }
 

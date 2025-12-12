@@ -135,7 +135,6 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                     {person.name}
                   </span>
                   {person.isChild && <span className="child-badge">(C)</span>}
-                  {person.depositPaid && <span className="deposit-badge">Deposit</span>}
                   {person.hasPaid && <span className="paid-badge">Paid</span>}
                   {completed && <span className="checkmark">✓</span>}
                   {completed && onPersonClick && (

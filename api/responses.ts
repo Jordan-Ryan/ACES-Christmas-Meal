@@ -51,7 +51,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   if (req.method === 'POST') {
-    const { personId, order, depositPaid, notes } = req.body;
+    const { personId, order, hasPaid, notes } = req.body;
 
     if (!personId || !order) {
       return res.status(400).json({ error: 'personId and order are required' });
@@ -64,13 +64,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(404).json({ error: 'Person not found' });
     }
 
-    // Update the person's order and deposit status
+    // Update the person's order and payment status
     if (notes !== undefined && order) {
       order.notes = notes;
     }
     data.people[personIndex].order = order;
-    if (depositPaid !== undefined) {
-      data.people[personIndex].depositPaid = depositPaid;
+    if (hasPaid !== undefined) {
+      data.people[personIndex].hasPaid = hasPaid;
     }
 
     // Note: In Vercel serverless functions, file writes are ephemeral

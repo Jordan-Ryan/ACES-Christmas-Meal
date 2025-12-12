@@ -35,14 +35,13 @@
       "id": 4,
       "name": "Jordan",
       "isChild": false,
-      "hasPaid": false,
+      "hasPaid": true,
       "order": {
-        "starter": "Scotch egg",
+        "starter": "Sourdough, crisp bread, salted butter",
         "sundayRoast": "Grain fed chicken, bread sauce",
         "dessert": "Sticky toffee pudding, clotted cream",
         "notes": "Custard not cream. "
-      },
-      "depositPaid": false
+      }
     },
     {
       "id": 5,
