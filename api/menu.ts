@@ -49,6 +49,7 @@ const menuData: MenuData = {
     { name: 'Fish & chips', price: 8.5 },
     { name: 'Chicken goujons', price: 9.5 },
     { name: 'Mac & cheese', price: 8.5 },
+    { name: 'Rigatoni pasta, pesto, Parmesan', price: 8.5 },
   ],
   kidsRoasts: [
     { name: 'Roast sirloin of native breed beef, horseradish', price: 12.5 },
