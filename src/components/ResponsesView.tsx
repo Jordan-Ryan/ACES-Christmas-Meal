@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { fetchResponses } from '../api';
-import type { Person, AdultOrder, KidsOrder } from '../types';
+import { fetchResponses, fetchMenu } from '../api';
+import type { Person, AdultOrder, KidsOrder, MenuData } from '../types';
 import * as XLSX from 'xlsx';
 
 interface ResponsesViewProps {
@@ -9,6 +9,7 @@ interface ResponsesViewProps {
 
 export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
   const [people, setPeople] = useState<Person[]>([]);
+  const [menu, setMenu] = useState<MenuData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -30,12 +31,66 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
 
   useEffect(() => {
     loadResponses();
+    fetchMenu().then(setMenu).catch((err) => {
+      console.error('Failed to load menu:', err);
+    });
   }, []);
+
+  // Helper function to find price
+  const findPrice = (category: keyof MenuData, itemName: string): number => {
+    if (!menu) return 0;
+    const items = menu[category];
+    if (!items || !Array.isArray(items)) return 0;
+    const item = items.find(item => item.name === itemName);
+    return item?.price || 0;
+  };
+
+  // Calculate total for a person's order
+  const calculatePersonTotal = (person: Person): number => {
+    if (!person.order || !menu) return 0;
+    let total = 0;
+
+    if (person.isChild) {
+      const order = person.order as KidsOrder;
+      if (order.sundayRoast) {
+        total += findPrice('kidsRoasts', order.sundayRoast);
+      } else if (order.main) {
+        total += findPrice('kidsMains', order.main);
+      }
+      if (order.dessert) {
+        total += findPrice('kidsDesserts', order.dessert);
+      }
+    } else {
+      const order = person.order as AdultOrder;
+      if (order.starter) {
+        // Check if it's a snack or starter
+        const snackPrice = findPrice('snacks', order.starter);
+        const starterPrice = findPrice('starters', order.starter);
+        total += snackPrice || starterPrice;
+      }
+      if (order.sundayRoast) {
+        total += findPrice('sundayRoasts', order.sundayRoast);
+      } else if (order.main) {
+        total += findPrice('mains', order.main);
+      }
+      if (order.sides && order.sides.length > 0) {
+        order.sides.forEach(side => {
+          total += findPrice('sides', side);
+        });
+      }
+      if (order.dessert) {
+        total += findPrice('desserts', order.dessert);
+      }
+    }
+
+    return total;
+  };
 
   const hasOrder = (person: Person): boolean => {
     if (!person.order) return false;
     if (person.isChild) {
-      return !!(person.order as KidsOrder).kidsOrder;
+      const order = person.order as KidsOrder;
+      return !!order.main; // Main is required for kids
     } else {
       const order = person.order as AdultOrder;
       return !!(order.main || order.sundayRoast); // Main or Sunday roast is required
@@ -51,7 +106,8 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
           '#': index + 1,
           Name: person.name,
           'Is Child': 'Yes',
-          'Kids Order': kidsOrder?.kidsOrder || '',
+          'Kids Main': kidsOrder?.main || '',
+          'Kids Dessert': kidsOrder?.dessert || '',
           Notes: kidsOrder?.notes || '',
           Status: hasOrder(person) ? 'Completed' : 'Pending',
         };
@@ -67,6 +123,7 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
           Sides: adultOrder?.sides?.join(', ') || '',
           Dessert: adultOrder?.dessert || '',
           Notes: adultOrder?.notes || '',
+          'Total Price': menu ? `£${calculatePersonTotal(person).toFixed(2)}` : '',
           Status: hasOrder(person) ? 'Completed' : 'Pending',
         };
       }
@@ -147,16 +204,48 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                         </div>
                       ) : (
                         <>
-                          <div>
-                            <strong>Order:</strong>{' '}
-                            {(order as KidsOrder | null)?.kidsOrder}
-                          </div>
+                          {(order as KidsOrder | null)?.sundayRoast && (
+                            <div>
+                              <strong>Sunday Roast:</strong>{' '}
+                              {(order as KidsOrder | null)?.sundayRoast}
+                              {menu && (
+                                <span className="price-badge">
+                                  {' '}£{findPrice('kidsRoasts', (order as KidsOrder).sundayRoast!).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {(order as KidsOrder | null)?.main && (
+                            <div>
+                              <strong>Main:</strong>{' '}
+                              {(order as KidsOrder | null)?.main}
+                              {menu && (
+                                <span className="price-badge">
+                                  {' '}£{findPrice('kidsMains', (order as KidsOrder).main!).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {(order as KidsOrder | null)?.dessert && (
+                            <div>
+                              <strong>Dessert:</strong>{' '}
+                              {(order as KidsOrder | null)?.dessert}
+                              {menu && (
+                                <span className="price-badge">
+                                  {' '}£{findPrice('kidsDesserts', (order as KidsOrder).dessert!).toFixed(2)}
+                                </span>
+                              )}
+                            </div>
+                          )}
                           {(order as KidsOrder | null)?.notes && (
                             <div className="notes-display">
                               <strong>Notes:</strong>{' '}
                               <span className="notes-text">{(order as KidsOrder | null)?.notes}</span>
                             </div>
                           )}
+                          <div className="person-total">
+                            <strong>Total: £{calculatePersonTotal(person).toFixed(2)}</strong>
+                          </div>
                         </>
                       )}
                     </div>
@@ -172,18 +261,37 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                             <div>
                               <strong>Starter:</strong>{' '}
                               {(order as AdultOrder | null)?.starter}
+                              {menu && (() => {
+                                const starterName = (order as AdultOrder).starter!;
+                                const snackPrice = findPrice('snacks', starterName);
+                                const starterPrice = findPrice('starters', starterName);
+                                const price = snackPrice || starterPrice;
+                                return price > 0 ? (
+                                  <span className="price-badge"> £{price.toFixed(2)}</span>
+                                ) : null;
+                              })()}
                             </div>
                           )}
                           {(order as AdultOrder | null)?.sundayRoast && (
                             <div>
                               <strong>Sunday Roast:</strong>{' '}
                               {(order as AdultOrder | null)?.sundayRoast}
+                              {menu && (
+                                <span className="price-badge">
+                                  {' '}£{findPrice('sundayRoasts', (order as AdultOrder).sundayRoast!).toFixed(2)}
+                                </span>
+                              )}
                             </div>
                           )}
                           {(order as AdultOrder | null)?.main && (
                             <div>
                               <strong>Main:</strong>{' '}
                               {(order as AdultOrder | null)?.main}
+                              {menu && (
+                                <span className="price-badge">
+                                  {' '}£{findPrice('mains', (order as AdultOrder).main!).toFixed(2)}
+                                </span>
+                              )}
                             </div>
                           )}
                           {(() => {
@@ -191,7 +299,10 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                             const sides = adultOrder?.sides;
                             return sides && sides.length > 0 ? (
                               <div>
-                                <strong>Sides:</strong> {sides.join(', ')}
+                                <strong>Sides:</strong> {sides.map(side => {
+                                  const price = menu ? findPrice('sides', side) : 0;
+                                  return price > 0 ? `${side} (£${price.toFixed(2)})` : side;
+                                }).join(', ')}
                               </div>
                             ) : null;
                           })()}
@@ -199,6 +310,11 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                             <div>
                               <strong>Dessert:</strong>{' '}
                               {(order as AdultOrder | null)?.dessert}
+                              {menu && (
+                                <span className="price-badge">
+                                  {' '}£{findPrice('desserts', (order as AdultOrder).dessert!).toFixed(2)}
+                                </span>
+                              )}
                             </div>
                           )}
                           {(order as AdultOrder | null)?.notes && (
@@ -207,6 +323,9 @@ export function ResponsesView({ onPersonClick }: ResponsesViewProps) {
                               <span className="notes-text">{(order as AdultOrder | null)?.notes}</span>
                             </div>
                           )}
+                          <div className="person-total">
+                            <strong>Total: £{calculatePersonTotal(person).toFixed(2)}</strong>
+                          </div>
                         </>
                       )}
                     </div>

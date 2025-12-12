@@ -13,7 +13,8 @@ interface OrderFormProps {
 const hasOrder = (person: Person): boolean => {
   if (!person.order) return false;
   if (person.isChild) {
-    return !!(person.order as { kidsOrder?: string }).kidsOrder;
+    const order = person.order as { main?: string; sundayRoast?: string };
+    return !!(order.main || order.sundayRoast); // Main or Sunday roast is required for kids
   } else {
     const order = person.order as { main?: string; sundayRoast?: string };
     return !!(order.main || order.sundayRoast); // Main or Sunday roast is required
@@ -47,7 +48,9 @@ export function OrderForm({
   const [main, setMain] = useState('');
   const [sides, setSides] = useState<string[]>([]);
   const [dessert, setDessert] = useState('');
-  const [kidsOrder, setKidsOrder] = useState('');
+  const [kidsMain, setKidsMain] = useState('');
+  const [kidsRoast, setKidsRoast] = useState('');
+  const [kidsDessert, setKidsDessert] = useState('');
   const [notes, setNotes] = useState('');
   const [hasPaid, setHasPaid] = useState(false);
 
@@ -73,7 +76,9 @@ export function OrderForm({
       if (person) {
         if (person.isChild) {
           const order = person.order as KidsOrder | null;
-          setKidsOrder(order?.kidsOrder || '');
+          setKidsMain(order?.main || '');
+          setKidsRoast(order?.sundayRoast || '');
+          setKidsDessert(order?.dessert || '');
           setNotes(order?.notes || '');
           setSnack('');
           setStarter('');
@@ -86,7 +91,7 @@ export function OrderForm({
           // Check if starter is a snack
           const starterValue = order?.starter || '';
           if (menu) {
-            const isSnack = menu.snacks.includes(starterValue);
+            const isSnack = menu.snacks.find(item => item.name === starterValue);
             if (isSnack) {
               setSnack(starterValue);
               setStarter('');
@@ -103,20 +108,24 @@ export function OrderForm({
           setSides(order?.sides || []);
           setDessert(order?.dessert || '');
           setNotes(order?.notes || '');
-          setKidsOrder('');
+          setKidsMain('');
+          setKidsRoast('');
+          setKidsDessert('');
         }
         setHasPaid(person.hasPaid || false);
       }
     } else {
-      setSnack('');
-      setStarter('');
-      setSundayRoast('');
-      setMain('');
-      setSides([]);
-      setDessert('');
-      setKidsOrder('');
-      setNotes('');
-      setHasPaid(false);
+          setSnack('');
+          setStarter('');
+          setSundayRoast('');
+          setMain('');
+          setSides([]);
+          setDessert('');
+          setKidsMain('');
+          setKidsRoast('');
+          setKidsDessert('');
+          setNotes('');
+          setHasPaid(false);
     }
     setSuccess(false);
     setError(null);
@@ -139,13 +148,16 @@ export function OrderForm({
     try {
       let order: Order;
       if (isChild) {
-        if (!kidsOrder) {
-          setError('Please select an order for the child');
+        const mainOrRoast = kidsRoast || kidsMain;
+        if (!mainOrRoast) {
+          setError('Please select a main course or Sunday roast for the child');
           setLoading(false);
           return;
         }
         order = {
-          kidsOrder,
+          main: kidsRoast ? undefined : kidsMain,
+          sundayRoast: kidsRoast || undefined,
+          dessert: kidsDessert || undefined,
           notes: notes || undefined,
         } as KidsOrder;
       } else {
@@ -203,6 +215,56 @@ export function OrderForm({
 
   const isEditing = hasPreSelectedPerson && (selectedPersonId !== '' && selectedPersonId !== null);
 
+  // Helper function to find price of a menu item
+  const findPrice = (category: keyof MenuData, itemName: string): number => {
+    if (!menu) return 0;
+    const items = menu[category];
+    if (!items || !Array.isArray(items)) return 0;
+    const item = items.find(item => item.name === itemName);
+    return item?.price || 0;
+  };
+
+  // Calculate total price for current order
+  const calculateTotal = (): number => {
+    if (!menu) return 0;
+    let total = 0;
+
+    if (isChild) {
+      if (kidsRoast) {
+        total += findPrice('kidsRoasts', kidsRoast);
+      } else if (kidsMain) {
+        total += findPrice('kidsMains', kidsMain);
+      }
+      if (kidsDessert) {
+        total += findPrice('kidsDesserts', kidsDessert);
+      }
+    } else {
+      if (snack) {
+        total += findPrice('snacks', snack);
+      }
+      if (starter) {
+        total += findPrice('starters', starter);
+      }
+      if (sundayRoast) {
+        total += findPrice('sundayRoasts', sundayRoast);
+      } else if (main) {
+        total += findPrice('mains', main);
+      }
+      if (sides.length > 0) {
+        sides.forEach(side => {
+          total += findPrice('sides', side);
+        });
+      }
+      if (dessert) {
+        total += findPrice('desserts', dessert);
+      }
+    }
+
+    return total;
+  };
+
+  const totalPrice = calculateTotal();
+
   return (
     <div className="order-form-container">
       <h2>{isEditing ? 'Edit Your Order' : 'Place Your Order'}</h2>
@@ -238,22 +300,60 @@ export function OrderForm({
         {selectedPersonId && (
           <>
             {isChild ? (
-              <div className="form-group">
-                <label htmlFor="kids-order">Kids Menu Order:</label>
-                <select
-                  id="kids-order"
-                  value={kidsOrder}
-                  onChange={(e) => setKidsOrder(e.target.value)}
-                  required
-                >
-                  <option value="">-- Select an option --</option>
-                  {menu.kidsMenu.map((item) => (
-                    <option key={item} value={item}>
-                      {item}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <>
+                <div className="form-group">
+                  <label htmlFor="kids-roast">Kids Sunday Roast:</label>
+                  <select
+                    id="kids-roast"
+                    value={kidsRoast}
+                    onChange={(e) => {
+                      setKidsRoast(e.target.value);
+                      if (e.target.value) setKidsMain('');
+                    }}
+                  >
+                    <option value="">-- None --</option>
+                    {menu.kidsRoasts.map((item) => (
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="kids-main">Kids Main:</label>
+                  <select
+                    id="kids-main"
+                    value={kidsMain}
+                    onChange={(e) => {
+                      setKidsMain(e.target.value);
+                      if (e.target.value) setKidsRoast('');
+                    }}
+                    required={!kidsRoast}
+                  >
+                    <option value="">-- Select a main --</option>
+                    {menu.kidsMains.map((item) => (
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group">
+                  <label htmlFor="kids-dessert">Kids Dessert:</label>
+                  <select
+                    id="kids-dessert"
+                    value={kidsDessert}
+                    onChange={(e) => setKidsDessert(e.target.value)}
+                  >
+                    <option value="">-- None --</option>
+                    {menu.kidsDesserts.map((item) => (
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </>
             ) : (
               <>
                 {menu.snacks.length > 0 && (
@@ -264,12 +364,12 @@ export function OrderForm({
                       value={snack}
                       onChange={(e) => setSnack(e.target.value)}
                     >
-                      <option value="">-- None --</option>
-                      {menu.snacks.map((item) => (
-                        <option key={item} value={item}>
-                          {item}
-                        </option>
-                      ))}
+                    <option value="">-- None --</option>
+                    {menu.snacks.map((item) => (
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
+                      </option>
+                    ))}
                     </select>
                   </div>
                 )}
@@ -283,8 +383,8 @@ export function OrderForm({
                   >
                     <option value="">-- None --</option>
                     {menu.starters.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
                       </option>
                     ))}
                   </select>
@@ -305,8 +405,8 @@ export function OrderForm({
                   >
                     <option value="">-- None --</option>
                     {menu.sundayRoasts.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
                       </option>
                     ))}
                   </select>
@@ -324,8 +424,8 @@ export function OrderForm({
                   >
                     <option value="">-- None --</option>
                     {menu.mains.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
                       </option>
                     ))}
                   </select>
@@ -336,19 +436,19 @@ export function OrderForm({
                     <label>Sides:</label>
                     <div className="sides-container">
                       {menu.sides.map((item) => (
-                        <label key={item} className="side-checkbox-label">
+                        <label key={item.name} className="side-checkbox-label">
                           <input
                             type="checkbox"
-                            checked={sides.includes(item)}
+                            checked={sides.includes(item.name)}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSides([...sides, item]);
+                                setSides([...sides, item.name]);
                               } else {
-                                setSides(sides.filter((s) => s !== item));
+                                setSides(sides.filter((s) => s !== item.name));
                               }
                             }}
                           />
-                          <span>{item}</span>
+                          <span>{item.name} - £{item.price.toFixed(2)}</span>
                         </label>
                       ))}
                     </div>
@@ -369,8 +469,8 @@ export function OrderForm({
                   >
                     <option value="">-- None --</option>
                     {menu.desserts.map((item) => (
-                      <option key={item} value={item}>
-                        {item}
+                      <option key={item.name} value={item.name}>
+                        {item.name} - £{item.price.toFixed(2)}
                       </option>
                     ))}
                   </select>
@@ -419,6 +519,10 @@ export function OrderForm({
 
             {error && <div className="error-message">{error}</div>}
             {success && <div className="success-message">Order submitted successfully!</div>}
+
+            <div className="total-price-display">
+              <strong>Total: £{totalPrice.toFixed(2)}</strong>
+            </div>
 
             <button type="submit" disabled={loading} className="submit-button">
               {loading ? (

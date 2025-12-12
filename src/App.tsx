@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react';
 import { OrderForm } from './components/OrderForm';
 import { ResponsesView } from './components/ResponsesView';
+import { ManageDrinks } from './components/ManageDrinks';
+import { DrinksExtras } from './components/DrinksExtras';
+import { Receipt } from './components/Receipt';
+import { ToBePaid } from './components/ToBePaid';
 import { fetchResponses } from './api';
 import type { Person } from './types';
 
-type View = 'form' | 'responses';
+type View = 'form' | 'responses' | 'manageDrinks' | 'drinksExtras' | 'receipt' | 'toBePaid';
 
 function App() {
   const [currentView, setCurrentView] = useState<View>('form');
@@ -52,8 +56,6 @@ function App() {
             className={`nav-tab ${currentView === 'form' ? 'active' : ''}`}
             onClick={() => {
               setCurrentView('form');
-              // Don't clear selectedPersonId if we're already editing someone
-              // Only clear if we're switching from responses view without a selection
               if (currentView === 'responses' && !selectedPersonId) {
                 setSelectedPersonId(null);
               }
@@ -67,11 +69,35 @@ function App() {
           >
             View Orders
           </button>
+          <button
+            className={`nav-tab ${currentView === 'manageDrinks' ? 'active' : ''}`}
+            onClick={() => setCurrentView('manageDrinks')}
+          >
+            Manage Extras
+          </button>
+          <button
+            className={`nav-tab ${currentView === 'drinksExtras' ? 'active' : ''}`}
+            onClick={() => setCurrentView('drinksExtras')}
+          >
+            Drinks & Extras
+          </button>
+          <button
+            className={`nav-tab ${currentView === 'receipt' ? 'active' : ''}`}
+            onClick={() => setCurrentView('receipt')}
+          >
+            Receipt
+          </button>
+          <button
+            className={`nav-tab ${currentView === 'toBePaid' ? 'active' : ''}`}
+            onClick={() => setCurrentView('toBePaid')}
+          >
+            To Be Paid
+          </button>
         </nav>
       </header>
 
       <main className="app-main">
-        {currentView === 'form' ? (
+        {currentView === 'form' && (
           <OrderForm
             people={people}
             onOrderSubmitted={handleOrderSubmitted}
@@ -79,8 +105,21 @@ function App() {
             onSelectedPersonChange={setSelectedPersonId}
             onNavigateToResponses={() => setCurrentView('responses')}
           />
-        ) : (
+        )}
+        {currentView === 'responses' && (
           <ResponsesView onPersonClick={handlePersonClick} />
+        )}
+        {currentView === 'manageDrinks' && (
+          <ManageDrinks />
+        )}
+        {currentView === 'drinksExtras' && (
+          <DrinksExtras />
+        )}
+        {currentView === 'receipt' && (
+          <Receipt />
+        )}
+        {currentView === 'toBePaid' && (
+          <ToBePaid />
         )}
       </main>
     </div>
